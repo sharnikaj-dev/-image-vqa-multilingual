@@ -9,6 +9,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const PORT = Number(process.env.PORT) || 3000;
+const VQA_MODEL = process.env.VQA_MODEL?.trim() || "gemini-4-hydrogen";
+const TTS_MODEL = process.env.TTS_MODEL?.trim() || "gemini-3.8-flash-lite-tts";
+const TRANSCRIBE_MODEL =
+  process.env.TRANSCRIBE_MODEL?.trim() || "gemini-3.5-transcribe";
+
 const ALLOWED_IMAGE_MIMES = new Set([
   "image/png",
   "image/jpeg",
@@ -64,7 +69,32 @@ function apiRateLimiter(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+function isVertexMode(): boolean {
+  return (
+    process.env.GOOGLE_GENAI_USE_VERTEXAI === "true" ||
+    (!process.env.GEMINI_API_KEY?.trim() &&
+      Boolean(process.env.GOOGLE_CLOUD_PROJECT?.trim()))
+  );
+}
+
 function getGeminiClient(): GoogleGenAI | null {
+  if (isVertexMode()) {
+    const project = process.env.GOOGLE_CLOUD_PROJECT?.trim();
+    if (!project) {
+      return null;
+    }
+    return new GoogleGenAI({
+      vertexai: true,
+      project,
+      location: process.env.GOOGLE_CLOUD_LOCATION?.trim() || "us-central1",
+      httpOptions: {
+        headers: {
+          "User-Agent": "aistudio-build",
+        },
+      },
+    });
+  }
+
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) {
     return null;
@@ -77,6 +107,12 @@ function getGeminiClient(): GoogleGenAI | null {
       },
     },
   });
+}
+
+function getNotConfiguredError(): string {
+  return isVertexMode()
+    ? "GOOGLE_CLOUD_PROJECT is not configured for Vertex AI on the server."
+    : "GEMINI_API_KEY or Vertex AI (GOOGLE_CLOUD_PROJECT) is not configured on the server.";
 }
 
 function formatApiError(err: unknown): { status: number; message: string } {
@@ -92,21 +128,22 @@ function formatApiError(err: unknown): { status: number; message: string } {
   ) {
     return {
       status: 403,
-      message:
-        "Gemini API key is invalid or missing permissions. Please verify GEMINI_API_KEY in the server environment.",
+      message: isVertexMode()
+        ? "Vertex AI permission denied. Ensure roles/aiplatform.user is granted to your Cloud Run service account."
+        : "Gemini API key is invalid or missing permissions. Please verify GEMINI_API_KEY in the server environment.",
     };
   }
   if (lower.includes("resource_exhausted") || lower.includes("429")) {
     return {
       status: 429,
-      message:
-        "Rate limit reached on the Gemini API. Please wait a moment and try again.",
+      message: "Rate limit reached on the AI service. Please wait a moment and try again.",
     };
   }
   if (lower.includes("not_found") || lower.includes("404")) {
     return {
       status: 404,
-      message: "Requested Gemini model is unavailable. Please retry shortly.",
+      message:
+        "Requested model was not found in the configured project/region. Check VQA_MODEL, TTS_MODEL, or GOOGLE_CLOUD_LOCATION.",
     };
   }
   return {
@@ -128,19 +165,20 @@ async function startServer() {
   app.use(express.json({ limit: "15mb" }));
 
   app.get("/api/health", (_req: Request, res: Response) => {
+    const vertex = isVertexMode();
     res.json({
       ok: true,
-      configured: Boolean(process.env.GEMINI_API_KEY?.trim()),
+      mode: vertex ? "vertexai" : "api-key",
+      configured: vertex
+        ? Boolean(process.env.GOOGLE_CLOUD_PROJECT?.trim())
+        : Boolean(process.env.GEMINI_API_KEY?.trim()),
     });
   });
 
   app.post("/api/vqa", apiRateLimiter, async (req: Request, res: Response) => {
     const ai = getGeminiClient();
     if (!ai) {
-      res.status(503).json({
-        error:
-          "GEMINI_API_KEY is not configured on the server.",
-      });
+      res.status(503).json({ error: getNotConfiguredError() });
       return;
     }
 
@@ -244,7 +282,7 @@ async function startServer() {
 
     try {
       const response = await ai.models.generateContent({
-        model: "gemini-4-hydrogen",
+        model: VQA_MODEL,
         contents: {
           parts: [
             {
@@ -325,10 +363,7 @@ async function startServer() {
     async (req: Request, res: Response) => {
       const ai = getGeminiClient();
       if (!ai) {
-        res.status(503).json({
-          error:
-            "GEMINI_API_KEY is not configured on the server.",
-        });
+        res.status(503).json({ error: getNotConfiguredError() });
         return;
       }
 
@@ -352,7 +387,7 @@ async function startServer() {
 
       try {
         const response = await ai.models.generateContent({
-          model: "gemini-4-hydrogen",
+          model: VQA_MODEL,
           contents: `Translate the following visual Q&A answer accurately and naturally into ${targetLanguage.trim()}. Preserve any quoted foreign signage or numbers cleanly. Return only the translated text.\n\nText:\n${sourceText.trim()}`,
           config: {
             thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
@@ -372,10 +407,7 @@ async function startServer() {
   app.post("/api/tts", apiRateLimiter, async (req: Request, res: Response) => {
     const ai = getGeminiClient();
     if (!ai) {
-      res.status(503).json({
-        error:
-          "GEMINI_API_KEY is not configured on the server.",
-      });
+      res.status(503).json({ error: getNotConfiguredError() });
       return;
     }
 
@@ -402,7 +434,7 @@ async function startServer() {
 
     try {
       const response = await ai.models.generateContent({
-        model: "gemini-3.8-flash-lite-tts",
+        model: TTS_MODEL,
         contents: [
           {
             role: "user",
@@ -451,10 +483,7 @@ async function startServer() {
     async (req: Request, res: Response) => {
       const ai = getGeminiClient();
       if (!ai) {
-        res.status(503).json({
-          error:
-            "GEMINI_API_KEY is not configured on the server.",
-        });
+        res.status(503).json({ error: getNotConfiguredError() });
         return;
       }
 
@@ -481,7 +510,7 @@ async function startServer() {
 
       try {
         const response = await ai.models.generateContent({
-          model: "gemini-3.5-transcribe",
+          model: TRANSCRIBE_MODEL,
           contents: {
             parts: [
               {
@@ -528,7 +557,9 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`PrismVoice server running on http://0.0.0.0:${PORT}`);
+    console.log(
+      `PrismVoice server running on http://0.0.0.0:${PORT} (${isVertexMode() ? "Vertex AI" : "API Key"} mode)`
+    );
   });
 }
 

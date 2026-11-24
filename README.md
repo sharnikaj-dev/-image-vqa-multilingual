@@ -11,29 +11,45 @@ An installable Progressive Web App (PWA) and full-stack web application for visu
 - **Neural Spoken Audio & Voice Dictation**: Generate 24 kHz WAV speech across five selectable voices (`Kore`, `Puck`, `Charon`, `Fenrir`, `Zephyr`), adjust playback speed, download `.wav` files, or speak questions via microphone.
 - **Installable PWA**: Works as both a public website and an installable desktop/mobile app with offline caching for static assets and sample scenes.
 
-## Local Setup
+## Local Development
 
 ```bash
 npm install
 cp .env.example .env
-# Set GEMINI_API_KEY in .env
+# Configure GEMINI_API_KEY (or Vertex AI ADC + GOOGLE_CLOUD_PROJECT) in .env
 npm run dev
 ```
 
 Open `http://localhost:3000`.
 
-## Production Hosting & Deployment
+## Deploy to Google Cloud Run + Vertex AI
 
-1. **Build the frontend & PWA bundle**:
+1. **Authenticate & select your Google Cloud project**:
    ```bash
-   npm run build
+   gcloud auth login
+   gcloud config set project YOUR_PROJECT_ID
    ```
-2. **Start the production Node/Express server**:
-   ```bash
-   NODE_ENV=production npm start
-   ```
-3. **Environment Variables**:
-   - `GEMINI_API_KEY` (required): Server-side Gemini API key.
-   - `PORT` (optional): Defaults to `3000`.
 
-Works seamlessly on Google Cloud Run, Render, Railway, Fly.io, or any Node.js hosting provider.
+2. **Enable Vertex AI, Cloud Run, Cloud Build, and Artifact Registry**:
+   ```bash
+   gcloud services enable aiplatform.googleapis.com run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com
+   ```
+
+3. **Grant Vertex AI permissions to your Cloud Run service account**:
+   ```bash
+   PROJECT_NUMBER=$(gcloud projects describe YOUR_PROJECT_ID --format="value(projectNumber)")
+   gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
+     --member="serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
+     --role="roles/aiplatform.user"
+   ```
+
+4. **Build and deploy from source** (uses the included `Dockerfile`):
+   ```bash
+   gcloud run deploy prismvoice \
+     --source . \
+     --region us-central1 \
+     --allow-unauthenticated \
+     --set-env-vars="GOOGLE_GENAI_USE_VERTEXAI=true,GOOGLE_CLOUD_PROJECT=YOUR_PROJECT_ID,GOOGLE_CLOUD_LOCATION=us-central1,VQA_MODEL=gemini-2.5-flash,TRANSCRIBE_MODEL=gemini-2.5-flash"
+   ```
+
+   > Note: Set `VQA_MODEL`, `TTS_MODEL`, and `TRANSCRIBE_MODEL` to the Vertex AI model IDs enabled in your chosen region. If you prefer API-key authentication instead of Vertex AI IAM, pass `--set-env-vars="GEMINI_API_KEY=..."` instead.
