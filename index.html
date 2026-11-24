@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PrismVoice – Multilingual Visual Q&amp;A &amp; Speech Studio</title>
+    <meta
+      name="description"
+      content="Upload or capture an image, focus on any region, ask visual questions across 16 languages, and listen to spoken neural translations with PrismVoice."
+    />
+
+    <!-- PWA & Mobile App Meta -->
+    <meta name="theme-color" content="#0B0F12" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="PrismVoice" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+
+    <!-- OpenGraph & Twitter Cards -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="PrismVoice" />
+    <meta
+      property="og:title"
+      content="PrismVoice – Multilingual Visual Q&amp;A &amp; Speech Studio"
+    />
+    <meta
+      property="og:description"
+      content="Upload or capture an image, focus on any region, ask visual questions across 16 languages, and listen to spoken neural translations."
+    />
+    <meta property="og:image" content="/pwa-512x512.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="PrismVoice – Multilingual Visual Q&amp;A &amp; Speech Studio"
+    />
+    <meta
+      name="twitter:description"
+      content="Upload or capture an image, focus on any region, ask visual questions across 16 languages, and listen to spoken neural translations."
+    />
+    <meta name="twitter:image" content="/pwa-512x512.png" />
+
+    <!-- Schema.org WebApplication -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "PrismVoice",
+        "applicationCategory": "UtilitiesApplication",
+        "operatingSystem": "All",
+        "description": "Multilingual visual question answering studio with region focus, OCR translation across 16 languages, and neural speech playback.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        }
+      }
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Outfit:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-[#0B0F12] text-slate-100 antialiased tracking-[0.01em] selection:bg-emerald-500/25 selection:text-emerald-200">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

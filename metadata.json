@@ -1,0 +1,6 @@
+{
+  "name": "LinguaLens VQA",
+  "description": "Multi-language visual question answering app — upload an image, ask a question, get an answer translated and read aloud.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
